@@ -110,8 +110,8 @@ class TestWishesAPI:
         assert response.status_code == 404
 
         data = response.json()
-        assert data["error"]["code"] == "not_found"
-        assert "wish not found" in data["error"]["message"]
+        assert "type" in data and "not_found" in data["type"]
+        assert "wish not found" in data["detail"]
 
     def test_update_wish_success(self, client, sample_wish_data):
         """Test successful wish update"""
@@ -153,7 +153,7 @@ class TestWishesAPI:
         assert response.status_code == 404
 
         data = response.json()
-        assert data["error"]["code"] == "not_found"
+        assert "type" in data and "not_found" in data["type"]
 
     def test_delete_wish_success(self, client, sample_wish_data):
         """Test successful wish deletion"""
@@ -178,7 +178,7 @@ class TestWishesAPI:
         assert response.status_code == 404
 
         data = response.json()
-        assert data["error"]["code"] == "not_found"
+        assert "type" in data and "not_found" in data["type"]
 
     def test_wish_validation_link_too_long(self, client):
         """Test validation error for link too long"""

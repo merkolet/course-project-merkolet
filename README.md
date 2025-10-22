@@ -13,11 +13,11 @@ uvicorn app.main:app --reload
 
 ## Ритуал перед PR
 ```bash
-ruff --fix .
-black .
-isort .
-pytest -q
-pre-commit run --all-files
+  ruff --fix .
+  black .
+  isort .
+  pytest -q
+  pre-commit run --all-files
 ```
 
 ## Тесты
