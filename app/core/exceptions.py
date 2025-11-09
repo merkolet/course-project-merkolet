@@ -9,6 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.core.data_masking import sanitize_error_detail
+
 
 class ProblemDetail(BaseModel):
     """RFC 7807 Problem Details model"""
@@ -40,14 +42,17 @@ def create_problem_detail(
     request: Request,
     instance: Optional[str] = None,
 ) -> ProblemDetail:
-    """Create RFC 7807 Problem Detail"""
+    """Create RFC 7807 Problem Detail with sanitized error details (S06-05)"""
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+
+    # Sanitize error detail to prevent information leakage
+    sanitized_detail = sanitize_error_detail(detail)
 
     return ProblemDetail(
         type=f"https://api.wishlist.com/problems/{error_type}",
         title=title,
         status=status,
-        detail=detail,
+        detail=sanitized_detail,
         instance=instance or str(request.url),
         correlation_id=correlation_id,
         timestamp=datetime.now(timezone.utc).isoformat(),
@@ -76,12 +81,16 @@ async def api_error_handler(request: Request, exc: ApiError):
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle RequestValidationError with RFC 7807 format"""
+    """Handle RequestValidationError with RFC 7807 format (S06-05)"""
+    # Sanitize validation errors to prevent information leakage
+    error_details = str(exc.errors())
+    sanitized_errors = sanitize_error_detail(error_details)
+
     problem_detail = create_problem_detail(
         error_type="validation-error",
         title="Validation Failed",
         status=422,
-        detail=f"Request validation failed: {exc.errors()}",
+        detail=f"Request validation failed: {sanitized_errors}",
         request=request,
     )
 
