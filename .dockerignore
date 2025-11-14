@@ -8,6 +8,7 @@ __pycache__/
 *.sqlite
 *.db
 .venv/
+venv/
 dist/
 build/
 .pytest_cache/
@@ -15,3 +16,10 @@ build/
 htmlcov/
 node_modules/
 .env
+.env.*
+*.md
+docs/
+*.log
+.DS_Store
+.vscode/
+.idea/
