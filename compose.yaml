@@ -1,8 +1,96 @@
 services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:16-alpine
+    container_name: wishlist-postgres
+    environment:
+      POSTGRES_DB: wishlist
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    # Безопасность контейнера
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    # Ограничения ресурсов
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    # Healthcheck
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d wishlist"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    profiles: ["dev"]
+
+  # FastAPI приложение
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wishlist-api
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DATABASE_URL=postgresql://user:password@postgres:5432/wishlist
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=wishlist
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    # Безопасность контейнера
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/tmp:noexec,nosuid,size=100m
+    # Ограничения ресурсов
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
     profiles: ["dev"]
+
+volumes:
+  postgres_data:
+    driver: local
