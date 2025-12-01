@@ -1,0 +1,94 @@
+name: Security Evidence
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "Dockerfile"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "compose.yaml"
+      - ".github/workflows/security.yml"
+      - "scripts/generate_sca_summary.py"
+      - "policy/**"
+      - "EVIDENCE/P09/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EVIDENCE_DIR: EVIDENCE/P09
+  SYFT_VERSION: "1.16.0"
+  GRYPE_VERSION: "0.76.0"
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin syft
+          syft version
+
+      - name: Generate SBOM
+        run: |
+          mkdir -p "${EVIDENCE_DIR}"
+          syft dir:. -o json > "${EVIDENCE_DIR}/sbom.json"
+          jq '.metadata += {"generated_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "commit": "${GITHUB_SHA}"}' \
+            "${EVIDENCE_DIR}/sbom.json" > "${EVIDENCE_DIR}/sbom.tmp" && mv "${EVIDENCE_DIR}/sbom.tmp" "${EVIDENCE_DIR}/sbom.json"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/sbom.json
+          retention-days: 30
+
+  sca:
+    runs-on: ubuntu-latest
+    needs: sbom
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+
+      - name: Install Grype
+        run: |
+          curl -sSfL https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin grype
+          grype version
+
+      - name: Run SCA
+        run: |
+          mkdir -p "${EVIDENCE_DIR}"
+          grype sbom:${EVIDENCE_DIR}/sbom.json -o json > "${EVIDENCE_DIR}/sca_report.json"
+
+      - name: Generate summary
+        run: |
+          python3 scripts/generate_sca_summary.py
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_DIR }}/sca_report.json
+            ${{ env.EVIDENCE_DIR }}/sca_summary.md
+          retention-days: 30
+
+      - name: Publish summary to job log
+        run: cat ${{ env.EVIDENCE_DIR }}/sca_summary.md >> $GITHUB_STEP_SUMMARY

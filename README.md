@@ -25,10 +25,6 @@ uvicorn app.main:app --reload
 pytest -q
 ```
 
-## CI
-В репозитории настроен workflow **CI** (GitHub Actions) — required check для `main`.
-Badge добавится автоматически после загрузки шаблона в GitHub.
-
 ## Контейнеры
 ```bash
 docker build -t secdev-app .
