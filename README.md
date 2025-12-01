@@ -25,6 +25,24 @@ uvicorn app.main:app --reload
 pytest -q
 ```
 
+## CI
+В репозитории настроен workflow **CI/CD Pipeline** (см. `.github/workflows/ci.yml`) — required check для `main`.
+Там же выполняются тесты, линтеры, сборка Docker-образа и мок-деплой.
+
+## Security Evidence (P09)
+- Workflow **Security Evidence** (`.github/workflows/security.yml`) генерирует SBOM и SCA-отчёты.
+- Все артефакты складываются в `EVIDENCE/P09/` и загружаются как GitHub Actions artifacts.
+- Структура описана в `EVIDENCE/P09/README.md`, отчёты можно использовать в DS1/финальном отчёте.
+
+### Артефакты
+- `EVIDENCE/P09/sbom.json` — Syft SBOM, привязан к коммиту.
+- `EVIDENCE/P09/sca_report.json` — Grype SCA отчёт.
+- `EVIDENCE/P09/sca_summary.md` — агрегированная сводка (Critical/High + план).
+
+### Политика и waivers
+- Общая политика: `policy/waivers.yml` (шаблон + пример).
+- Все исключения либо фиксируются в этом файле, либо закрываются обновлениями зависимостей.
+
 ## Контейнеры
 ```bash
 docker build -t secdev-app .

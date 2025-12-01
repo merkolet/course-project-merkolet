@@ -1,0 +1,103 @@
+name: Static Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "app/**"
+      - "security/**"
+      - "scripts/generate_sast_summary.py"
+      - "EVIDENCE/P10/**"
+      - ".github/workflows/static-analysis.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python & Semgrep
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install --upgrade pip && pip install semgrep==1.83.0
+
+      - name: Run Semgrep (p/ci + custom rules)
+        env:
+          SEMGREP_APP_TOKEN: ""
+        run: |
+          mkdir -p EVIDENCE/P10
+          semgrep --config p/ci \
+                  --config security/semgrep/rules.yml \
+                  --error \
+                  --sarif --output EVIDENCE/P10/semgrep.sarif \
+                  || true
+
+      - name: Upload Semgrep artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-${{ github.run_id }}
+          path: EVIDENCE/P10/semgrep.sarif
+          retention-days: 21
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Gitleaks
+        run: |
+          mkdir -p EVIDENCE/P10
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          ./gitleaks detect \
+            --config=security/.gitleaks.toml \
+            --report-format json \
+            --report-path EVIDENCE/P10/gitleaks.json \
+            || true
+
+      - name: Upload Gitleaks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-${{ github.run_id }}
+          path: EVIDENCE/P10/gitleaks.json
+          retention-days: 21
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [semgrep, gitleaks]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: EVIDENCE/P10
+
+      - name: Generate summary
+        run: |
+          python3 scripts/generate_sast_summary.py
+
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-summary-${{ github.run_id }}
+          path: |
+            EVIDENCE/P10/sast_summary.md
+          retention-days: 21
+
+      - name: Publish summary
+        run: cat EVIDENCE/P10/sast_summary.md >> $GITHUB_STEP_SUMMARY

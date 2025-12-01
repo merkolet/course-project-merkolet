@@ -1,0 +1,16 @@
+rules:
+  - id: wishlist.fastapi.insecure-http-client
+    languages: [python]
+    message: "HTTP requests should use HTTPS. Update the URL or justify in policy/waivers.yml."
+    severity: MEDIUM
+    metadata:
+      category: security
+      cwe: "CWE-319: Cleartext Transmission of Sensitive Information"
+      references:
+        - https://owasp.org/www-community/controls/Transport_Layer_Protection_Cheat_Sheet
+    pattern-either:
+      - patterns:
+          - pattern: requests.$FUNC("http://"$URL, ...)
+      - patterns:
+          - pattern: httpx.$FUNC("http://"$URL, ...)
+    fix: "Use https://$URL instead of http://$URL"

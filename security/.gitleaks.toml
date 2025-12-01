@@ -1,0 +1,25 @@
+# Gitleaks configuration for P10
+# Official schema: https://github.com/gitleaks/gitleaks
+
+[extend]
+path = ""
+
+[rules]
+# Use built-in default rules; we focus on allowlist for known safe strings.
+
+[allowlist]
+  description = "Known safe test credentials"
+  paths = []
+  commits = []
+
+  [[allowlist.rules]]
+    description = "Local dev credentials for docker compose"
+    regex = '''postgresql://user:password@postgres:5432/wishlist'''
+    paths = ["compose.yaml"]
+    tags = ["test-credential"]
+
+
+  [[allowlist.rules]]
+    description = "Documented placeholder secrets in README"
+    regex = '''(STAGING|PROD)_(DB_URL|JWT_SECRET|API_KEY)'''
+    tags = ["docs"]
