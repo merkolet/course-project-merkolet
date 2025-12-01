@@ -1,0 +1,18 @@
+policy:
+  owner: "Security Guild"
+  review_interval_days: 30
+  escalation_contact: "security@example.com"
+
+waivers:
+  - id: WAIVER-2025-001
+    vulnerability_id: "GHSA-xxxx-xxxx"
+    package: "example-lib"
+    version: "1.2.3"
+    introduced_in: "transitive dependency via fastapi"
+    justification: >
+      No exploit path in current threat model; monitored weekly.
+    mitigation_plan: "Re-test with patched release, replace dependency if no fix by 2026-01-15."
+    created_by: "sergey"
+    created_at: "2025-11-18"
+    review_due: "2026-01-15"
+    status: "active"
