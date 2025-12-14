@@ -43,6 +43,17 @@ pytest -q
 - Общая политика: `policy/waivers.yml` (шаблон + пример).
 - Все исключения либо фиксируются в этом файле, либо закрываются обновлениями зависимостей.
 
+## Static Analysis (P10)
+- Workflow **Static Security Checks** (`.github/workflows/static-analysis.yml`) выполняет SAST (Semgrep) и сканирование секретов (Gitleaks).
+- Артефакты: `EVIDENCE/P10/semgrep.sarif`, `EVIDENCE/P10/gitleaks.json`, `EVIDENCE/P10/sast_summary.md`.
+- Структура описана в `EVIDENCE/P10/README.md`.
+
+## DAST (P11)
+- Workflow **DAST (ZAP Baseline)** (`.github/workflows/dast.yml`) выполняет динамическое сканирование безопасности.
+- Приложение поднимается через `docker compose` (реальная конфигурация), затем запускается ZAP baseline scan.
+- Артефакты: `EVIDENCE/P11/zap_baseline.json`, `EVIDENCE/P11/zap_baseline.html`.
+- Структура описана в `EVIDENCE/P11/README.md`.
+
 ## Контейнеры
 ```bash
 docker build -t secdev-app .
