@@ -97,7 +97,9 @@ jobs:
 
           if json_path.exists():
               data = json.loads(json_path.read_text())
-              alerts = data.get("site", [{}])[0].get("alerts", [])
+              sites = data.get("site") or []
+              first_site = sites[0] if sites else {}
+              alerts = first_site.get("alerts", [])
 
               risk_counts = {}
               for alert in alerts:
@@ -195,7 +197,9 @@ jobs:
           report_path = Path("EVIDENCE/P11/zap_baseline.json")
           if report_path.exists():
               data = json.loads(report_path.read_text())
-              alerts = data.get("site", [{}])[0].get("alerts", [])
+              sites = data.get("site") or []
+              first_site = sites[0] if sites else {}
+              alerts = first_site.get("alerts", [])
 
               risk_counts = {"High": 0, "Medium": 0, "Low": 0, "Informational": 0}
               for alert in alerts:

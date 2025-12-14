@@ -90,8 +90,12 @@ jobs:
         if: always()
         run: |
           mkdir -p EVIDENCE/P12
-          if [ ! -f EVIDENCE/P12/checkov_report.json ] || [ -d EVIDENCE/P12/checkov_report.json ]; then
-            rm -rf EVIDENCE/P12/checkov_report.json
+          if [ -d EVIDENCE/P12/checkov_report.json ]; then
+            sudo mv EVIDENCE/P12/checkov_report.json/results_json.json EVIDENCE/P12/checkov_report.tmp || true
+            sudo rm -rf EVIDENCE/P12/checkov_report.json || true
+            sudo mv EVIDENCE/P12/checkov_report.tmp EVIDENCE/P12/checkov_report.json || true
+          fi
+          if [ ! -f EVIDENCE/P12/checkov_report.json ]; then
             echo '{"summary": {"passed": 0, "failed": 0, "skipped": 0, "parsing_errors": 0}, "results": {"passed_checks": [], "failed_checks": [], "skipped_checks": []}}' > EVIDENCE/P12/checkov_report.json
           fi
 
