@@ -219,7 +219,6 @@ jobs:
         echo "Environment: production"
         echo "DB URL: [MASKED]"
         echo "Deployment simulation completed successfully"
-
         # В реальном проекте здесь был бы реальный деплой
 
   # C4. Отчет

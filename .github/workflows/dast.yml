@@ -1,0 +1,222 @@
+name: DAST (ZAP Baseline)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "compose.yaml"
+      - ".github/workflows/dast.yml"
+  workflow_dispatch:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "compose.yaml"
+
+concurrency:
+  group: dast-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_PORT: 8000
+  ZAP_VERSION: "2.15.0"
+
+jobs:
+  dast:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # C1. Запуск сервиса в реальной конфигурации (docker compose)
+      - name: Set up Docker Compose
+        run: |
+          docker compose version
+
+      - name: Build and start services
+        run: |
+          docker compose --profile dev up -d --build
+          docker compose ps
+
+      - name: Wait for application to be ready
+        run: |
+          echo "Waiting for application to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:${{ env.APP_PORT }}/health; then
+              echo "Application is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting..."
+            sleep 2
+          done
+          echo "Application failed to start"
+          docker compose logs app
+          exit 1
+
+      # C2. Запуск ZAP baseline
+      - name: Download ZAP
+        run: |
+          wget -q "https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
+          tar -xzf "ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
+          sudo mv ZAP_* /opt/zap
+          sudo chmod +x /opt/zap/zap.sh
+
+      - name: Run ZAP baseline scan
+        continue-on-error: true
+        run: |
+          /opt/zap/zap.sh -cmd \
+            -quickurl "http://localhost:${{ env.APP_PORT }}" \
+            -quickout "${{ github.workspace }}/EVIDENCE/P11/zap_baseline.json" \
+            -quickprogress \
+            -config api.disablekey=true \
+            -config scanner.attackOnStart=true \
+            -config scanner.delayInMs=1000 \
+            -config connection.timeoutInSecs=60 \
+            -addonupdate \
+            -addoninstallall
+
+      - name: Generate HTML report
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          json_path = Path("EVIDENCE/P11/zap_baseline.json")
+          html_path = Path("EVIDENCE/P11/zap_baseline.html")
+
+          if json_path.exists():
+              data = json.loads(json_path.read_text())
+              alerts = data.get("site", [{}])[0].get("alerts", [])
+
+              risk_counts = {}
+              for alert in alerts:
+                  risk = alert.get("risk", "Unknown")
+                  risk_counts[risk] = risk_counts.get(risk, 0) + 1
+
+              html = f"""<!DOCTYPE html>
+          <html>
+          <head>
+            <title>ZAP Baseline Report</title>
+            <style>
+              body {{ font-family: Arial, sans-serif; margin: 20px; }}
+              h1 {{ color: #333; }}
+              .risk-high {{ color: #d32f2f; font-weight: bold; }}
+              .risk-medium {{ color: #f57c00; }}
+              .risk-low {{ color: #1976d2; }}
+              .risk-info {{ color: #666; }}
+              table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+              th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+              th {{ background-color: #f2f2f2; }}
+            </style>
+          </head>
+          <body>
+          <h1>ZAP Baseline Scan Report</h1>
+          <p><strong>Target:</strong> http://localhost:${{ env.APP_PORT }}</p>
+          <p><strong>Total alerts:</strong> {len(alerts)}</p>
+
+          <h2>Alerts by Risk Level</h2>
+          <ul>
+          """
+
+              for risk in ["High", "Medium", "Low", "Informational"]:
+                  count = risk_counts.get(risk, 0)
+                  class_name = f"risk-{risk.lower()}"
+                  html += f"<li class='{class_name}'>{risk}: {count}</li>\n"
+
+              html += """</ul>
+
+          <h2>Alert Details</h2>
+          <table>
+          <tr>
+            <th>Risk</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>URL</th>
+          </tr>
+          """
+
+              for alert in alerts[:50]:  # Limit to first 50 for readability
+                  risk = alert.get("risk", "Unknown")
+                  name = alert.get("name", "N/A")
+                  desc = alert.get("description", "N/A")[:100]
+                  url = alert.get("url", "N/A")
+
+                  html += f"""
+          <tr>
+            <td class='risk-{risk.lower()}'>{risk}</td>
+            <td>{name}</td>
+            <td>{desc}...</td>
+            <td>{url}</td>
+          </tr>
+          """
+
+              html += """</table>
+          <p><em>Full JSON report available in zap_baseline.json</em></p>
+          </body>
+          </html>"""
+
+              html_path.parent.mkdir(parents=True, exist_ok=True)
+              html_path.write_text(html)
+              print(f"HTML report generated: {html_path}")
+          else:
+              print("JSON report not found, skipping HTML generation")
+          EOF
+
+      # C3. Артефакты
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-reports-${{ github.run_id }}
+          path: |
+            EVIDENCE/P11/zap_baseline.json
+            EVIDENCE/P11/zap_baseline.html
+          retention-days: 30
+
+      - name: Generate summary
+        if: always()
+        run: |
+          if [ -f "EVIDENCE/P11/zap_baseline.json" ]; then
+            python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          report_path = Path("EVIDENCE/P11/zap_baseline.json")
+          if report_path.exists():
+              data = json.loads(report_path.read_text())
+              alerts = data.get("site", [{}])[0].get("alerts", [])
+
+              risk_counts = {"High": 0, "Medium": 0, "Low": 0, "Informational": 0}
+              for alert in alerts:
+                  risk = alert.get("risk", "Informational")
+                  if risk in risk_counts:
+                      risk_counts[risk] += 1
+
+              print("## ZAP Baseline Scan Results")
+              print(f"- Total alerts: {len(alerts)}")
+              print(f"- High: {risk_counts['High']}")
+              print(f"- Medium: {risk_counts['Medium']}")
+              print(f"- Low: {risk_counts['Low']}")
+              print(f"- Informational: {risk_counts['Informational']}")
+
+              if risk_counts["High"] > 0 or risk_counts["Medium"] > 0:
+                  print("\n⚠️ Action required: Review High/Medium alerts")
+              else:
+                  print("\n✅ No critical issues detected")
+          EOF
+          fi
+        continue-on-error: true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose --profile dev down -v || true
