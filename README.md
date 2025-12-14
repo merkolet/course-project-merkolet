@@ -54,6 +54,15 @@ pytest -q
 - Артефакты: `EVIDENCE/P11/zap_baseline.json`, `EVIDENCE/P11/zap_baseline.html`.
 - Структура описана в `EVIDENCE/P11/README.md`.
 
+## IaC & Container Security (P12)
+- Workflow **P12 - IaC & Container Security** (`.github/workflows/ci-p12-iac-container.yml`) выполняет комплексную проверку безопасности инфраструктуры и контейнеров.
+- **Hadolint** — статический анализ Dockerfile на best practices.
+- **Checkov** — проверка IaC (Dockerfile, compose.yaml) на соответствие политикам безопасности.
+- **Trivy** — сканирование собранного Docker образа на уязвимости.
+- Артефакты: `EVIDENCE/P12/hadolint_report.json`, `EVIDENCE/P12/checkov_report.json`, `EVIDENCE/P12/trivy_report.json`.
+- Конфигурация: `security/hadolint.yaml`, `security/checkov.yaml`.
+- Дополнительная информация о мерах харднинга: `EVIDENCE/P12/hardening_summary.md`.
+
 ## Контейнеры
 ```bash
 docker build -t secdev-app .

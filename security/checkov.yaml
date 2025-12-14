@@ -1,0 +1,21 @@
+# Checkov configuration for wishlist-api project
+
+framework:
+  - dockerfile
+
+check:
+  - CKV_DOCKER_1  # Ensure the platform is set correctly
+  - CKV_DOCKER_2  # Ensure that HEALTHCHECK is being used
+  - CKV_DOCKER_3  # Ensure that a user for the container has been created
+  - CKV_DOCKER_4  # Ensure that COPY is used instead of ADD
+  - CKV_DOCKER_5  # Ensure update instructions are not used alone in the Dockerfile
+  - CKV_DOCKER_6  # Ensure that the USER instruction is not used
+  - CKV_DOCKER_7  # Ensure the base image uses a non latest version tag
+  - CKV_DOCKER_8  # Ensure the last USER is not root
+
+
+soft-fail: true
+
+quiet: true
+
+output: json

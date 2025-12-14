@@ -66,7 +66,9 @@ jobs:
         run: |
           wget -q "https://github.com/zaproxy/zaproxy/releases/download/v${{ env.ZAP_VERSION }}/ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
           tar -xzf "ZAP_${{ env.ZAP_VERSION }}_Linux.tar.gz"
-          sudo mv ZAP_* /opt/zap
+          sudo mkdir -p /opt/zap
+          ZAP_DIR=$(ls -d ZAP_* | head -1)
+          sudo mv "$ZAP_DIR"/* /opt/zap/
           sudo chmod +x /opt/zap/zap.sh
 
       - name: Run ZAP baseline scan
@@ -95,7 +97,9 @@ jobs:
 
           if json_path.exists():
               data = json.loads(json_path.read_text())
-              alerts = data.get("site", [{}])[0].get("alerts", [])
+              sites = data.get("site") or []
+              first_site = sites[0] if sites else {}
+              alerts = first_site.get("alerts", [])
 
               risk_counts = {}
               for alert in alerts:
@@ -193,7 +197,9 @@ jobs:
           report_path = Path("EVIDENCE/P11/zap_baseline.json")
           if report_path.exists():
               data = json.loads(report_path.read_text())
-              alerts = data.get("site", [{}])[0].get("alerts", [])
+              sites = data.get("site") or []
+              first_site = sites[0] if sites else {}
+              alerts = first_site.get("alerts", [])
 
               risk_counts = {"High": 0, "Medium": 0, "Low": 0, "Informational": 0}
               for alert in alerts:
@@ -209,9 +215,9 @@ jobs:
               print(f"- Informational: {risk_counts['Informational']}")
 
               if risk_counts["High"] > 0 or risk_counts["Medium"] > 0:
-                  print("\n⚠️ Action required: Review High/Medium alerts")
+                  print("\n Action required: Review High/Medium alerts")
               else:
-                  print("\n✅ No critical issues detected")
+                  print("\n No critical issues detected")
           EOF
           fi
         continue-on-error: true
