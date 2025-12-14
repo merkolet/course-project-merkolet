@@ -10,8 +10,9 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Ограничение доступа к БД - только локальный хост
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     # Безопасность контейнера
     security_opt:
       - no-new-privileges:true
@@ -51,8 +52,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Ограничение портов - только необходимый порт
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
@@ -65,13 +67,16 @@ services:
     # Безопасность контейнера
     security_opt:
       - no-new-privileges:true
-
+      - apparmor:docker-default
     cap_drop:
       - ALL
+    # Не добавляем capabilities - контейнер работает с минимальными правами
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
       - /var/tmp:noexec,nosuid,size=100m
+    # Явное указание пользователя (non-root)
+    user: "1000:1000"
     # Ограничения ресурсов
     deploy:
       resources:

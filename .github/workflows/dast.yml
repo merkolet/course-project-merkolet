@@ -209,9 +209,9 @@ jobs:
               print(f"- Informational: {risk_counts['Informational']}")
 
               if risk_counts["High"] > 0 or risk_counts["Medium"] > 0:
-                  print("\n⚠️ Action required: Review High/Medium alerts")
+                  print("\n Action required: Review High/Medium alerts")
               else:
-                  print("\n✅ No critical issues detected")
+                  print("\n No critical issues detected")
           EOF
           fi
         continue-on-error: true

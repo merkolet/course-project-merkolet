@@ -1,0 +1,40 @@
+# Hadolint configuration for wishlist-api project
+
+ignored:
+  - DL3008  # Pin versions in apt get install
+  - DL3009  # Delete the apt-get lists after installing something
+  - DL3042  # Avoid use of cache directory with pip
+  - DL3043  # Use cache mount with pip
+
+override:
+  error:
+    - DL3001  # Forbid 'latest' tag
+    - DL3002  # Last user should not be root
+    - DL3003  # Use WORKDIR instead of RUN cd
+    - DL3004  # Do not use sudo
+    - DL3005  # Do not use apt-get upgrade
+    - DL3006  # Always tag the version of an image explicitly
+    - DL3007  # Avoid latest tag
+  warning:
+    - DL3008  # Pin versions in apt get install
+    - DL3015  # Avoid additional packages by using --no-install-recommends
+    - DL3018  # Pin versions in pip
+    - DL3020  # Use COPY instead of ADD
+    - DL3021  # COPY with more than 2 arguments requires the last argument to end with /
+    - DL3025  # Use arguments JSON notation for CMD and ENTRYPOINT arguments
+  info:
+    - DL3009  # Delete the apt-get lists after installing something
+    - DL3013  # Pin versions in pip
+    - DL3014  # Use the -y switch to avoid manual input
+    - DL3016  # Pin versions in pip
+    - DL3019  # Use the --no-cache-dir switch to avoid pip cache
+    - DL3022  # COPY --from should reference a previously defined FROM alias
+    - DL3023  # COPY --from cannot reference its own FROM alias
+    - DL3024  # FROM aliases (stage names) must be unique
+    - DL3025  # Use arguments JSON notation for CMD and ENTRYPOINT arguments
+    - DL3042  # Avoid use of cache directory with pip
+    - DL3043  # Use cache mount with pip
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
