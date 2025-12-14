@@ -68,6 +68,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prepare Checkov output directory
+        run: |
+          mkdir -p EVIDENCE/P12
+          rm -rf EVIDENCE/P12/checkov_report.json
+
       - name: Run Checkov on Dockerfile and Compose
         id: checkov_scan
         uses: bridgecrewio/checkov-action@master
@@ -85,7 +90,8 @@ jobs:
         if: always()
         run: |
           mkdir -p EVIDENCE/P12
-          if [ ! -f EVIDENCE/P12/checkov_report.json ]; then
+          if [ ! -f EVIDENCE/P12/checkov_report.json ] || [ -d EVIDENCE/P12/checkov_report.json ]; then
+            rm -rf EVIDENCE/P12/checkov_report.json
             echo '{"summary": {"passed": 0, "failed": 0, "skipped": 0, "parsing_errors": 0}, "results": {"passed_checks": [], "failed_checks": [], "skipped_checks": []}}' > EVIDENCE/P12/checkov_report.json
           fi
 
@@ -111,18 +117,20 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
-          tags: local/wishlist-api:test
+          tags: wishlist-api:test
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: local/wishlist-api:test
+          image-ref: wishlist-api:test
           format: json
           output: EVIDENCE/P12/trivy_report.json
           severity: CRITICAL,HIGH,MEDIUM,LOW
